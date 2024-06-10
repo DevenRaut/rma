@@ -1,0 +1,93 @@
+$ sinfo
+
+---if node have * in them
+$ scontrol reconfigure
+
+# 1 --------------------
+
+$ sudo -i
+
+---on master:
+
+$ vim /opt/slurm-21.08.8/etc/slurm.conf
+PartitionName=scavenger Nodes=compute1 Default=YES MaxTime=31-00:00:00 DefaultTime=01:00:00 State=UP DisableRootJobs=YES
+
+
+$ scp /opt/slurm-21.08.8/etc/slurm.conf compute1:/opt/slurm-21.08.8/etc/
+$ scp /opt/slurm-21.08.8/etc/slurm.conf compute2:/opt/slurm-21.08.8/etc/
+$ systemctl restart slurmctld
+$ systemctl restart slurmd
+$ ssh compute1 systemctl restart slurmd
+$ ssh compute2 systemctl restart slurmd
+$ sinfo
+
+ 
+$ scontrol show partition=scavenger
+$ srun -N 1 -n 1 --pty /bin/bash
+
+
+# 2 --------------------
+$ scontrol show res
+
+$ scontrol create reservation=reserve_lab partition=scavenger nodes=all duration=60 user=-root starttime=now
+
+$ scontrol show res
+
+
+
+# 3 --------------------
+
+$ scontrol show nodes compute1
+
+$ scontrol show partition testp
+
+
+# 4 --------------------
+
+# create user  on master,compute1,2
+
+    $ groupadd -g 20000 rma
+    $ useradd -u 2002 -g 20000 -m -d /nfs/hpcsa1 -s /bin/bash hpcsa1
+    $ passwd hpcsa1
+
+# create account in slurm 
+
+    $ sacctmgr remove account name=rmalab-acc
+    $ sacctmgr remove user name=rmalab
+
+
+    $ sacctmgr add account testfac1-acc
+    $ sacctmgr show asso
+
+
+# assign user to account
+
+    $ sacctmgr create user name=hpcsa1 DefaultAccount=testfac1-acc
+    $ sacctmgr show asso
+
+$ su - hpcsa1
+$ vim /nfs/job.sh
+
+#! /bin/bash
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=00:05:00
+#SBATCH --error=job.%J.err
+#SBATCH --output=job.%J.out
+#SBATCH -p scavenger
+cd $SLURM_SUBMIT_DIR
+
+
+echo "Starting at `date`"
+echo "running oh hosts:$SLURM_NODELIST"
+echo "hello"
+sleep 30
+
+$ sbatch -A testfac1-acc /nfs/job.sh
+
+---on root 
+$ squeue
+
+
+
+
